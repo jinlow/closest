@@ -1,5 +1,6 @@
-pub mod tree;
+mod distance;
 mod error;
+pub mod tree;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

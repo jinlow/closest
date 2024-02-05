@@ -1,53 +1,90 @@
+use crate::distance::DistanceMetric;
 use crate::error::TreeBuildError;
-use std::ops::Range;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 
 /// Points to a node on the node store
 /// or data on the data store.
 #[derive(Debug)]
 pub enum NodeOrDataPointer {
     Node(Node),
-    Data(Range<usize>),
+    Data((usize, usize)),
 }
 
 #[derive(Debug)]
 pub struct Node {
     axis: usize,
-    split: f32,
+    data_pointer: usize,
     left: Box<NodeOrDataPointer>,
     right: Box<NodeOrDataPointer>,
 }
 
-/// Arbitrary data that is queried from n dimensional space.
+/// Arbitrary data that is queried from n dimensional coordinates.
 #[derive(Debug)]
 pub struct Data<T> {
     data: T,
-    position: Position,
+    point: Point,
 }
 
 impl<T> Data<T> {
-    pub fn new(data: T, space: Vec<f32>) -> Self {
+    pub fn new(data: T, coordinates: Vec<f32>) -> Self {
         Data {
             data,
-            position: Position { space },
+            point: Point { coordinates },
         }
     }
 }
 
-/// Position defining location in N
-/// dimensional space.
+/// Point defining location in N
+/// dimensional coordinates.
 #[derive(Debug)]
-pub struct Position {
-    space: Vec<f32>,
+pub struct Point {
+    pub coordinates: Vec<f32>,
 }
 
-impl Position {
+impl Point {
     pub fn shape(&self) -> usize {
-        self.space.len()
+        self.coordinates.len()
     }
     pub fn point(&self, i: usize) -> f32 {
-        self.space[i]
+        self.coordinates[i]
     }
 }
+
+struct RawNeighbor {
+    distance: f32,
+    data_pointer: usize,
+}
+
+impl RawNeighbor {
+    pub fn new(distance: f32, data_pointer: usize) -> Self {
+        RawNeighbor {
+            distance,
+            data_pointer,
+        }
+    }
+}
+
+/// Reversing, to make BinaryHeap Minimum
+impl Ord for RawNeighbor {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.distance.total_cmp(&other.distance)
+    }
+}
+
+impl PartialOrd for RawNeighbor {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for RawNeighbor {
+    fn eq(&self, other: &Self) -> bool {
+        self.distance == other.distance
+    }
+}
+
+impl Eq for RawNeighbor {}
 
 /// Tree that is used to partition the data.
 #[derive(Debug)]
@@ -60,33 +97,34 @@ fn build_tree<T>(
     data: &mut [Data<T>],
     data_location: usize,
     depth: usize,
-    position_len: usize,
+    point_len: usize,
 ) -> NodeOrDataPointer {
-    if data.len() == 1 {
-        return NodeOrDataPointer::Data(data_location..(data_location + data.len()));
+    // Only can split further if there is at least 3 records
+    if data.len() < 3 {
+        return NodeOrDataPointer::Data((data_location, (data_location + data.len())));
     }
-    let axis = depth % position_len;
+    let axis = depth % point_len;
     data.sort_by(|a, b| {
-        let a_ = a.position.point(axis);
-        let b_ = b.position.point(axis);
+        let a_ = a.point.point(axis);
+        let b_ = b.point.point(axis);
         // Consider NaN values Less than everything.
         a_.partial_cmp(&b_).unwrap_or(std::cmp::Ordering::Less)
     });
     let median = data.len() >> 1;
     let node = Node {
         axis,
-        split: data[median].position.point(axis),
+        data_pointer: median + data_location,
         left: Box::new(build_tree(
             &mut data[..median],
             data_location,
             depth + 1,
-            position_len,
+            point_len,
         )),
         right: Box::new(build_tree(
-            &mut data[median..],
-            data_location + median,
+            &mut data[(median + 1)..],
+            data_location + median + 1,
             depth + 1,
-            position_len,
+            point_len,
         )),
     };
     return NodeOrDataPointer::Node(node);
@@ -94,13 +132,65 @@ fn build_tree<T>(
 
 impl<T> KDTree<T> {
     pub fn from_vec(mut data: Vec<Data<T>>) -> Result<Self, TreeBuildError> {
-        let position_len = data[0].position.shape();
-        let raw_node = build_tree(&mut data, 0, 0, position_len);
+        let point_len = data[0].point.shape();
+        let raw_node = build_tree(&mut data, 0, 0, point_len);
         let root_node = match raw_node {
             NodeOrDataPointer::Data(_) => Err(TreeBuildError::UnableToBuildTree),
             NodeOrDataPointer::Node(n) => Ok(n),
         }?;
         Ok(KDTree { root_node, data })
+    }
+    fn get_data(&self, data_idx: usize) -> &Data<T> {
+        &self.data[data_idx]
+    }
+    fn get_data_point(&self, data_idx: usize) -> &Point {
+        &self.get_data(data_idx).point
+    }
+
+    fn nearest_neighbors<D: DistanceMetric>(
+        &self,
+        k: usize,
+        point: &Point,
+        node: &NodeOrDataPointer,
+        depth: usize,
+        heap: &mut BinaryHeap<RawNeighbor>,
+        distance_metric: D,
+    ) {
+        match node {
+            NodeOrDataPointer::Node(n) => {
+                let distance =
+                    distance_metric.distance(&point, self.get_data_point(n.data_pointer));
+                match heap.peek() {
+                    None => heap.push(RawNeighbor::new(distance, n.data_pointer)),
+                    Some(worst_neighbor) => {
+                        if k < heap.len() || distance < worst_neighbor.distance {
+                            heap.push(RawNeighbor::new(distance, n.data_pointer))
+                        }
+                    }
+                }
+                // Add visit children logic here.
+            }
+            NodeOrDataPointer::Data((start, stop)) => {
+                // let mut distance = (*start..*stop)
+                //     .map(|data_pointer| {
+                //         RawNeighbor::new(
+                //             distance_metric.distance(&point, self.get_data_point(data_pointer)),
+                //             data_pointer,
+                //         )
+                //     })
+                //     .collect::<Vec<RawNeighbor>>();
+                // distance.sort_unstable();
+                // if heap.len() == 0 {
+                //     heap.extend(distance[0..k].iter().map(|s| *s))
+                // } else {
+                //     while heap.len() <= k {
+                //         if let Some(b) = heap.peek() {
+                            
+                //         }
+                //     }
+                // }
+            }
+        }
     }
 }
 
@@ -130,19 +220,35 @@ mod tests {
         let data_len = data.len();
         let tree = KDTree::from_vec(data).unwrap();
         let mut stack = vec![&tree.root_node];
-        let mut found_data = vec![];
+        let mut found_data = vec![tree.root_node.data_pointer..(tree.root_node.data_pointer + 1)];
         while let Some(node) = stack.pop() {
             match node.left.as_ref() {
-                NodeOrDataPointer::Data(i) => found_data.push(i),
-                NodeOrDataPointer::Node(n) => stack.push(&n),
+                NodeOrDataPointer::Data((start, stop)) => found_data.push(*start..*stop),
+                NodeOrDataPointer::Node(n) => {
+                    stack.push(&n);
+                    found_data.push(n.data_pointer..(n.data_pointer + 1));
+                }
             }
             match node.right.as_ref() {
-                NodeOrDataPointer::Data(i) => found_data.push(i),
-                NodeOrDataPointer::Node(n) => stack.push(n),
+                NodeOrDataPointer::Data((start, stop)) => found_data.push(*start..*stop),
+                NodeOrDataPointer::Node(n) => {
+                    stack.push(&n);
+                    found_data.push(n.data_pointer..(n.data_pointer + 1));
+                }
             }
         }
         println!("{:#?}", tree);
-        assert_eq!(found_data.len(), data_len);
+        let mut data_idx = Vec::new();
+        for g in found_data {
+            for i in g {
+                data_idx.push(i);
+            }
+        }
+        data_idx.sort();
+        println!("{:?}", data_idx);
+        assert_eq!(data_idx.len(), data_len);
+        let expected_idx: Vec<usize> = (0..tree.data.len()).collect();
+        assert_eq!(expected_idx, data_idx);
 
         //assert_eq!(result, 4);
     }

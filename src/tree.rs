@@ -1,6 +1,7 @@
 use crate::distance::DistanceMetric;
 use crate::error::TreeBuildError;
 use std::cmp::Ordering;
+use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
 /// Points to a node on the node store
@@ -168,27 +169,30 @@ impl<T> KDTree<T> {
                         }
                     }
                 }
-                // Add visit children logic here.
+                // TODO: Add visit children logic here.
             }
             NodeOrDataPointer::Data((start, stop)) => {
-                // let mut distance = (*start..*stop)
-                //     .map(|data_pointer| {
-                //         RawNeighbor::new(
-                //             distance_metric.distance(&point, self.get_data_point(data_pointer)),
-                //             data_pointer,
-                //         )
-                //     })
-                //     .collect::<Vec<RawNeighbor>>();
-                // distance.sort_unstable();
-                // if heap.len() == 0 {
-                //     heap.extend(distance[0..k].iter().map(|s| *s))
-                // } else {
-                //     while heap.len() <= k {
-                //         if let Some(b) = heap.peek() {
-                            
-                //         }
-                //     }
-                // }
+                let neighbor_candidates = (*start..*stop)
+                    .map(|data_pointer| {
+                        Reverse(RawNeighbor::new(
+                            distance_metric.distance(&point, self.get_data_point(data_pointer)),
+                            data_pointer,
+                        ))
+                    })
+                    .collect::<BinaryHeap<Reverse<RawNeighbor>>>();
+                if heap.len() == 0 {
+                    // Push k records onto the heap and don't worry about anything.
+                    neighbor_candidates
+                        .into_iter()
+                        .take(k)
+                        .for_each(|n| heap.push(n.0));
+                } else {
+                    if let Some(b) = heap.pop() {
+                        // b is the nearest neighbor with the greatest
+                        // distance, if neighbor_candidates has a smaller distance
+                        // add it and keep going
+                    }
+                }
             }
         }
     }

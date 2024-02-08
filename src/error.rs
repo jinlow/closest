@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum TreeBuildError {
+pub enum NearestError {
     #[error("All positions must have the same length")]
     DifferingPositionLength,
     #[error("Unable to construct the tree.")]

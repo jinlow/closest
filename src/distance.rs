@@ -4,7 +4,7 @@ pub trait DistanceMetric {
 }
 
 #[derive(Debug, Default)]
-struct SquaredEuclideanDistance {}
+pub struct SquaredEuclideanDistance {}
 
 impl DistanceMetric for SquaredEuclideanDistance {
     fn distance(&self, p1: &Point, p2: &Point) -> f32 {

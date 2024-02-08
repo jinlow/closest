@@ -1,6 +1,9 @@
 mod distance;
 mod error;
-pub mod tree;
+mod tree;
+
+pub use crate::tree::KDTree;
+pub use crate::distance::{DistanceMetric, SquaredEuclideanDistance};
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

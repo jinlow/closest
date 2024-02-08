@@ -6,4 +6,6 @@ pub enum TreeBuildError {
     DifferingPositionLength,
     #[error("Unable to construct the tree.")]
     UnableToBuildTree,
+    #[error("Root node is data.")]
+    RootNodeIsData,
 }

@@ -1,7 +1,6 @@
 use crate::distance::DistanceMetric;
 use crate::error::TreeBuildError;
 use std::cmp::Ordering;
-use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
 /// Points to a node on the node store
@@ -14,7 +13,6 @@ pub enum NodeOrDataPointer {
 
 #[derive(Debug)]
 pub struct Node {
-    axis: usize,
     data_pointer: usize,
     left: Box<NodeOrDataPointer>,
     right: Box<NodeOrDataPointer>,
@@ -22,12 +20,12 @@ pub struct Node {
 
 /// Arbitrary data that is queried from n dimensional coordinates.
 #[derive(Debug)]
-pub struct Data<T> {
+pub struct Data<T: Clone> {
     data: T,
     point: Point,
 }
 
-impl<T> Data<T> {
+impl<T: Clone> Data<T> {
     pub fn new(data: T, coordinates: Vec<f32>) -> Self {
         Data {
             data,
@@ -44,6 +42,12 @@ pub struct Point {
 }
 
 impl Point {
+    pub fn new(coordinates: Vec<f32>) -> Self {
+        Point { coordinates }
+    }
+}
+
+impl Point {
     pub fn shape(&self) -> usize {
         self.coordinates.len()
     }
@@ -52,9 +56,46 @@ impl Point {
     }
 }
 
+#[derive(Debug)]
+pub struct Neighbor<T: Clone> {
+    pub distance: f32,
+    pub data: T,
+}
+
+impl<T: Clone> Ord for Neighbor<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.distance.total_cmp(&other.distance)
+    }
+}
+
+impl<T: Clone> PartialOrd for Neighbor<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T: Clone> PartialEq for Neighbor<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.distance == other.distance
+    }
+}
+
+impl<T: Clone> Eq for Neighbor<T> {}
+
+
+#[derive(Debug)]
 struct RawNeighbor {
     distance: f32,
     data_pointer: usize,
+}
+
+impl RawNeighbor {
+    pub fn as_neighbor<T: Clone>(self, data: &[Data<T>]) -> Neighbor<T> {
+        Neighbor {
+            distance: self.distance,
+            data: data[self.data_pointer].data.clone(),
+        }
+    }
 }
 
 impl RawNeighbor {
@@ -89,12 +130,13 @@ impl Eq for RawNeighbor {}
 
 /// Tree that is used to partition the data.
 #[derive(Debug)]
-pub struct KDTree<T> {
-    root_node: Node,
+pub struct KDTree<T: Clone> {
+    root_node: NodeOrDataPointer,
     data: Vec<Data<T>>,
+    dimension: usize,
 }
 
-fn build_tree<T>(
+fn build_tree<T: Clone>(
     data: &mut [Data<T>],
     data_location: usize,
     depth: usize,
@@ -113,7 +155,6 @@ fn build_tree<T>(
     });
     let median = data.len() >> 1;
     let node = Node {
-        axis,
         data_pointer: median + data_location,
         left: Box::new(build_tree(
             &mut data[..median],
@@ -131,15 +172,21 @@ fn build_tree<T>(
     return NodeOrDataPointer::Node(node);
 }
 
-impl<T> KDTree<T> {
+impl<T: Clone> KDTree<T> {
     pub fn from_vec(mut data: Vec<Data<T>>) -> Result<Self, TreeBuildError> {
         let point_len = data[0].point.shape();
-        let raw_node = build_tree(&mut data, 0, 0, point_len);
-        let root_node = match raw_node {
-            NodeOrDataPointer::Data(_) => Err(TreeBuildError::UnableToBuildTree),
-            NodeOrDataPointer::Node(n) => Ok(n),
-        }?;
-        Ok(KDTree { root_node, data })
+        let root_node = build_tree(&mut data, 0, 0, point_len);
+        Ok(KDTree {
+            root_node,
+            data,
+            dimension: point_len,
+        })
+    }
+    pub fn get_root_node(&self) -> Result<&Node, TreeBuildError> {
+        match &self.root_node {
+            NodeOrDataPointer::Data(_) => Err(TreeBuildError::RootNodeIsData),
+            NodeOrDataPointer::Node(n) => Ok(&n),
+        }
     }
     fn get_data(&self, data_idx: usize) -> &Data<T> {
         &self.data[data_idx]
@@ -147,15 +194,26 @@ impl<T> KDTree<T> {
     fn get_data_point(&self, data_idx: usize) -> &Point {
         &self.get_data(data_idx).point
     }
-
+    pub fn get_nearest_neighbors<D: DistanceMetric>(
+        &self,
+        point: &Point,
+        k: usize,
+        distance_metric: &D,
+    ) -> Vec<Neighbor<T>> {
+        let mut heap = BinaryHeap::new();
+        self.nearest_neighbors(point, k, &self.root_node, 0, &mut heap, distance_metric);
+        heap.into_iter()
+            .map(|r| r.as_neighbor(&self.data))
+            .collect()
+    }
     fn nearest_neighbors<D: DistanceMetric>(
         &self,
-        k: usize,
         point: &Point,
+        k: usize,
         node: &NodeOrDataPointer,
         depth: usize,
         heap: &mut BinaryHeap<RawNeighbor>,
-        distance_metric: D,
+        distance_metric: &D,
     ) {
         match node {
             NodeOrDataPointer::Node(n) => {
@@ -164,33 +222,62 @@ impl<T> KDTree<T> {
                 match heap.peek() {
                     None => heap.push(RawNeighbor::new(distance, n.data_pointer)),
                     Some(worst_neighbor) => {
-                        if k < heap.len() || distance < worst_neighbor.distance {
+                        if distance < worst_neighbor.distance {
+                            if heap.len() >= k {
+                                heap.pop();
+                            }
                             heap.push(RawNeighbor::new(distance, n.data_pointer))
                         }
                     }
                 }
-                // TODO: Add visit children logic here.
+                let axis = depth % self.dimension;
+                let diff =
+                    point.coordinates[axis] - self.get_data_point(n.data_pointer).coordinates[axis];
+                let (close, away) = if diff <= 0. {
+                    (n.left.as_ref(), n.right.as_ref())
+                } else {
+                    (n.right.as_ref(), n.left.as_ref())
+                };
+                self.nearest_neighbors(point, k, close, depth + 1, heap, distance_metric);
+                if let Some(worst_neighbor) = heap.peek() {
+                    if diff.powi(2) < worst_neighbor.distance {
+                        self.nearest_neighbors(point, k, away, depth + 1, heap, distance_metric);
+                    }
+                }
             }
             NodeOrDataPointer::Data((start, stop)) => {
-                let neighbor_candidates = (*start..*stop)
+                let mut neighbor_candidates = (*start..*stop)
                     .map(|data_pointer| {
-                        Reverse(RawNeighbor::new(
+                        RawNeighbor::new(
                             distance_metric.distance(&point, self.get_data_point(data_pointer)),
                             data_pointer,
-                        ))
+                        )
                     })
-                    .collect::<BinaryHeap<Reverse<RawNeighbor>>>();
-                if heap.len() == 0 {
-                    // Push k records onto the heap and don't worry about anything.
-                    neighbor_candidates
-                        .into_iter()
-                        .take(k)
-                        .for_each(|n| heap.push(n.0));
+                    .collect::<Vec<RawNeighbor>>();
+                // Add all candidates if we have enough space.
+                if k.saturating_sub(heap.len()) >= neighbor_candidates.len() {
+                    heap.extend(neighbor_candidates)
                 } else {
-                    if let Some(b) = heap.pop() {
-                        // b is the nearest neighbor with the greatest
-                        // distance, if neighbor_candidates has a smaller distance
-                        // add it and keep going
+                    // Sort in reverse order.
+                    neighbor_candidates.sort_unstable_by(|a, b| b.cmp(a));
+                    loop {
+                        match neighbor_candidates.pop() {
+                            None => break,
+                            Some(best_candidate) => {
+                                if heap.len() < k {
+                                    heap.push(best_candidate)
+                                } else {
+                                    if let Some(worst_neighbor) = heap.peek() {
+                                        if worst_neighbor > &best_candidate {
+                                            heap.pop();
+                                            heap.push(best_candidate)
+                                        } else {
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -201,6 +288,7 @@ impl<T> KDTree<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::distance::SquaredEuclideanDistance;
 
     #[test]
     fn tree_build() {
@@ -223,8 +311,11 @@ mod tests {
         ];
         let data_len = data.len();
         let tree = KDTree::from_vec(data).unwrap();
-        let mut stack = vec![&tree.root_node];
-        let mut found_data = vec![tree.root_node.data_pointer..(tree.root_node.data_pointer + 1)];
+        let mut stack = vec![tree.get_root_node().unwrap()];
+        let mut found_data = vec![
+            tree.get_root_node().unwrap().data_pointer
+                ..(tree.get_root_node().unwrap().data_pointer + 1),
+        ];
         while let Some(node) = stack.pop() {
             match node.left.as_ref() {
                 NodeOrDataPointer::Data((start, stop)) => found_data.push(*start..*stop),
@@ -241,7 +332,7 @@ mod tests {
                 }
             }
         }
-        println!("{:#?}", tree);
+        // println!("{:#?}", tree);
         let mut data_idx = Vec::new();
         for g in found_data {
             for i in g {
@@ -249,11 +340,14 @@ mod tests {
             }
         }
         data_idx.sort();
-        println!("{:?}", data_idx);
+        // println!("{:?}", data_idx);
         assert_eq!(data_idx.len(), data_len);
         let expected_idx: Vec<usize> = (0..tree.data.len()).collect();
         assert_eq!(expected_idx, data_idx);
 
-        //assert_eq!(result, 4);
+        // Get nearest neighbor
+        let point = Point::new(vec![43.6766, 4.6278]); // Arles
+        let nearest = tree.get_nearest_neighbors(&point, 1, &SquaredEuclideanDistance::default());
+        assert_eq!(nearest[0].data, "Paris");
     }
 }

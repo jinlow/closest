@@ -23,15 +23,23 @@ pub struct KDTree {
 
 #[pymethods]
 impl KDTree {
+    /// Instantiate a new KDTree Object.
     #[new]
-    fn new(records: Vec<(DataType, Vec<f32>)>) -> Self {
+    #[pyo3(signature = (records, min_points=30))]
+    fn new(records: Vec<(DataType, Vec<f32>)>, min_points: usize) -> Self {
         KDTree {
             tree: nearest_rust::KDTree::from_iter(
-                records.into_iter().map(|(d, p)| nearest_rust::Data::new(d, p)),
+                records
+                    .into_iter()
+                    .map(|(d, p)| nearest_rust::Data::new(d, p)),
+                min_points,
             )
             .unwrap(),
         }
     }
+
+    /// Get the K nearest neighbors to a point.
+    #[pyo3(signature = (point, k=1))]
     pub fn get_nearest_neighbors(
         &self,
         py: Python,
@@ -41,7 +49,11 @@ impl KDTree {
         let raw_point = nearest_rust::Point::new(point);
         Ok(self
             .tree
-            .get_nearest_neighbors(&raw_point, k, &nearest_rust::SquaredEuclideanDistance::default())
+            .get_nearest_neighbors(
+                &raw_point,
+                k,
+                &nearest_rust::SquaredEuclideanDistance::default(),
+            )
             .iter()
             .map(|n| match &n.data {
                 DataType::Str(v) => (n.distance, v.into_py(py)),

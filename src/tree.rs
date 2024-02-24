@@ -140,9 +140,10 @@ fn build_tree<T: Clone>(
     data_location: usize,
     depth: usize,
     point_len: usize,
+    min_points: usize,
 ) -> NodeOrDataPointer {
     // Only can split further if there is at least 3 records
-    if data.len() < 3 {
+    if (data.len() < min_points) || (data.len() < 3) {
         return NodeOrDataPointer::Data((data_location, (data_location + data.len())));
     }
     let axis = depth % point_len;
@@ -160,24 +161,29 @@ fn build_tree<T: Clone>(
             data_location,
             depth + 1,
             point_len,
+            min_points,
         )),
         right: Box::new(build_tree(
             &mut data[(median + 1)..],
             data_location + median + 1,
             depth + 1,
             point_len,
+            min_points,
         )),
     };
     return NodeOrDataPointer::Node(node);
 }
 
 impl<T: Clone> KDTree<T> {
-    pub fn from_iter<I: Iterator<Item = Data<T>>>(data: I) -> Result<Self, NearestError> {
-        Self::from_vec(data.collect())
+    pub fn from_iter<I: Iterator<Item = Data<T>>>(
+        data: I,
+        min_points: usize,
+    ) -> Result<Self, NearestError> {
+        Self::from_vec(data.collect(), min_points)
     }
-    pub fn from_vec(mut data: Vec<Data<T>>) -> Result<Self, NearestError> {
+    pub fn from_vec(mut data: Vec<Data<T>>, min_points: usize) -> Result<Self, NearestError> {
         let point_len = data[0].point.shape();
-        let root_node = build_tree(&mut data, 0, 0, point_len);
+        let root_node = build_tree(&mut data, 0, 0, point_len, min_points);
         Ok(KDTree {
             root_node,
             data,
@@ -312,7 +318,7 @@ mod tests {
             Data::new("Tokyo", vec![35.690, 139.692]),
         ];
         let data_len = data.len();
-        let tree = KDTree::from_vec(data).unwrap();
+        let tree = KDTree::from_vec(data, 1).unwrap();
         let mut stack = vec![tree.get_root_node().unwrap()];
         let mut found_data = vec![
             tree.get_root_node().unwrap().data_pointer

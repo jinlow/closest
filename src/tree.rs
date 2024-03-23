@@ -26,6 +26,7 @@ pub struct Data<T: Clone> {
 }
 
 impl<T: Clone> Data<T> {
+    /// Create a new data point with given coordinates, and data identifier.
     pub fn new(data: T, coordinates: Vec<f32>) -> Self {
         Data {
             data,
@@ -202,6 +203,7 @@ impl<T: Clone> KDTree<T> {
     fn get_data_point(&self, data_idx: usize) -> &Point {
         &self.get_data(data_idx).point
     }
+    /// Get k nearest neighbors to a given point.
     pub fn get_nearest_neighbors<D: DistanceMetric>(
         &self,
         point: &Point,
@@ -304,18 +306,15 @@ mod tests {
         // measures are not taking the curve of the earth into account, and
         // rather simplifying it to a 2-D plane.
         let data = vec![
-            Data::new("Boston", vec![42.358, -71.064]),
-            Data::new("Troy", vec![42.732, -73.693]),
-            Data::new("New York", vec![40.664, -73.939]),
-            Data::new("Miami", vec![25.788, -80.224]),
-            Data::new("London", vec![51.507, -0.128]),
-            Data::new("Paris", vec![48.857, 2.351]),
-            Data::new("Vienna", vec![48.208, 16.373]),
-            Data::new("Rome", vec![41.900, 12.500]),
-            Data::new("Beijing", vec![39.914, 116.392]),
-            Data::new("Hong Kong", vec![22.278, 114.159]),
-            Data::new("Seoul", vec![37.567, 126.978]),
-            Data::new("Tokyo", vec![35.690, 139.692]),
+            Data::new("blue", vec![0., 0., 255.]),
+            Data::new("red", vec![255., 0., 0.]),
+            Data::new("navy", vec![17., 4., 89.]),
+            Data::new("purple", vec![171., 3., 255.]),
+            Data::new("light-blue", vec![61., 118., 224.]),
+            Data::new("pink", vec![255., 3., 213.]),
+            Data::new("yellow", vec![255., 234., 0.]),
+            Data::new("green", vec![16., 145., 25.]),
+            Data::new("orange", vec![255., 106., 0.]),
         ];
         let data_len = data.len();
         let tree = KDTree::from_vec(data, 1).unwrap();
@@ -354,8 +353,8 @@ mod tests {
         assert_eq!(expected_idx, data_idx);
 
         // Get nearest neighbor
-        let point = Point::new(vec![43.6766, 4.6278]); // Arles
+        let point = Point::new(vec![237., 139., 69.]); // Light Orange
         let nearest = tree.get_nearest_neighbors(&point, 1, &SquaredEuclideanDistance::default());
-        assert_eq!(nearest[0].data, "Paris");
+        assert_eq!(nearest[0].data, "orange");
     }
 }

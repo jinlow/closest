@@ -104,7 +104,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"
+    #if: "startsWith(github.ref, 'refs/tags/')"
     needs: [linux, windows, macos, sdist]
     steps:
       - uses: actions/download-artifact@v3
@@ -117,6 +117,7 @@ jobs:
         with:
           command: upload
           args: --non-interactive --skip-existing *
+          working-directory: python
 
   cargo-build-test:
     runs-on: ubuntu-latest

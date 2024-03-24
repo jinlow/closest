@@ -10,6 +10,10 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+authors = [{ name = "James Inlow" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+
 [project.optional-dependencies]
 tests = [
     "pytest",
@@ -19,3 +23,4 @@ dynamic = ["version"]
 [tool.maturin]
 python-source = "python"
 features = ["pyo3/extension-module"]
+sdist-include = ["LICENSE", "README.md"]

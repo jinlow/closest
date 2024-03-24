@@ -31,6 +31,7 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: 'true'
           manylinux: auto
+          working-directory: python
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
@@ -54,6 +55,7 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
+          working-directory: python
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
@@ -76,6 +78,7 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
+          working-directory: python
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:

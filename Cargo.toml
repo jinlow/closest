@@ -2,7 +2,7 @@
 name = "closest"
 version = "0.1.0"
 edition = "2021"
-liscence = "LICENSE"
+license = "LICENSE"
 description = "Simple nearest neighbor implementation."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

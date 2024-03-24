@@ -36,7 +36,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: wheels
-          path: dist
+          path: python/dist
 
   windows:
     runs-on: windows-latest
@@ -60,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: wheels
-          path: dist
+          path: python/dist
 
   macos:
     runs-on: macos-latest
@@ -83,7 +83,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: wheels
-          path: dist
+          path: python/dist
 
   sdist:
     runs-on: ubuntu-latest
@@ -94,11 +94,12 @@ jobs:
         with:
           command: sdist
           args: --out dist
+          working-directory: python
       - name: Upload sdist
         uses: actions/upload-artifact@v3
         with:
           name: wheels
-          path: dist
+          path: python/dist
 
   release:
     name: Release

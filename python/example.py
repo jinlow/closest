@@ -1,4 +1,4 @@
-from nearest import KDTree
+from closest import KDTree
 
 colors = [
         ("blue", [0., 0., 255.]),

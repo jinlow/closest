@@ -2,7 +2,7 @@
 
 use std::error::Error;
 
-use nearest::{Data, KDTree, Point, SquaredEuclideanDistance};
+use closest::{Data, KDTree, Point, SquaredEuclideanDistance};
 
 fn main() -> Result<(), Box<dyn Error>> {
     // RGB color coordinates

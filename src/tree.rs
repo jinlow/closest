@@ -1,5 +1,5 @@
 use crate::distance::DistanceMetric;
-use crate::error::NearestError;
+use crate::error::ClosestError;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
@@ -179,10 +179,10 @@ impl<T: Clone> KDTree<T> {
     pub fn from_iter<I: Iterator<Item = Data<T>>>(
         data: I,
         min_points: usize,
-    ) -> Result<Self, NearestError> {
+    ) -> Result<Self, ClosestError> {
         Self::from_vec(data.collect(), min_points)
     }
-    pub fn from_vec(mut data: Vec<Data<T>>, min_points: usize) -> Result<Self, NearestError> {
+    pub fn from_vec(mut data: Vec<Data<T>>, min_points: usize) -> Result<Self, ClosestError> {
         let point_len = data[0].point.shape();
         let root_node = build_tree(&mut data, 0, 0, point_len, min_points);
         Ok(KDTree {
@@ -191,9 +191,9 @@ impl<T: Clone> KDTree<T> {
             dimension: point_len,
         })
     }
-    pub fn get_root_node(&self) -> Result<&Node, NearestError> {
+    pub fn get_root_node(&self) -> Result<&Node, ClosestError> {
         match &self.root_node {
-            NodeOrDataPointer::Data(_) => Err(NearestError::RootNodeIsData),
+            NodeOrDataPointer::Data(_) => Err(ClosestError::RootNodeIsData),
             NodeOrDataPointer::Node(n) => Ok(&n),
         }
     }

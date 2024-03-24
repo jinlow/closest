@@ -1,4 +1,4 @@
-extern crate nearest as nearest_rust;
+extern crate closest as closest_rust;
 use pyo3::prelude::*;
 
 #[derive(FromPyObject, std::cmp::PartialEq, Clone)]
@@ -18,7 +18,7 @@ pub enum DataType {
 
 #[pyclass]
 pub struct KDTree {
-    tree: nearest_rust::KDTree<DataType>,
+    tree: closest_rust::KDTree<DataType>,
 }
 
 #[pymethods]
@@ -28,10 +28,10 @@ impl KDTree {
     #[pyo3(signature = (records, min_points=30))]
     fn new(records: Vec<(DataType, Vec<f32>)>, min_points: usize) -> Self {
         KDTree {
-            tree: nearest_rust::KDTree::from_iter(
+            tree: closest_rust::KDTree::from_iter(
                 records
                     .into_iter()
-                    .map(|(d, p)| nearest_rust::Data::new(d, p)),
+                    .map(|(d, p)| closest_rust::Data::new(d, p)),
                 min_points,
             )
             .unwrap(),
@@ -46,13 +46,13 @@ impl KDTree {
         point: Vec<f32>,
         k: usize,
     ) -> PyResult<Vec<(f32, PyObject)>> {
-        let raw_point = nearest_rust::Point::new(point);
+        let raw_point = closest_rust::Point::new(point);
         Ok(self
             .tree
             .get_nearest_neighbors(
                 &raw_point,
                 k,
-                &nearest_rust::SquaredEuclideanDistance::default(),
+                &closest_rust::SquaredEuclideanDistance::default(),
             )
             .iter()
             .map(|n| match &n.data {
@@ -66,7 +66,7 @@ impl KDTree {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn nearest(_py: Python, m: &PyModule) -> PyResult<()> {
+fn closest(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<KDTree>()?;
     Ok(())
 }

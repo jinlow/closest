@@ -117,3 +117,19 @@ jobs:
         with:
           command: upload
           args: --non-interactive --skip-existing *
+
+  cargo-build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install latests stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Run tests
+        run: cargo test --verbose
+      - if: "startsWith(github.ref, 'refs/tags/')"
+        name: Publish Crate
+        run: cargo publish --token ${CRATES_TOKEN} --allow-dirty
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}

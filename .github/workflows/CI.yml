@@ -128,8 +128,8 @@ jobs:
           toolchain: stable
       - name: Run tests
         run: cargo test --verbose
-     # - if: "startsWith(github.ref, 'refs/tags/')"
-      - name: Publish Crate
+      - if: "startsWith(github.ref, 'refs/tags/')"
+        name: Publish Crate
         run: cargo publish --token ${CRATES_TOKEN} --allow-dirty
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}

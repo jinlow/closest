@@ -10,4 +10,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.23.5"
-closest = { version = "0.1.0", path = "../" }
+closest = { version = "0.2.0", path = "../" }

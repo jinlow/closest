@@ -6,6 +6,8 @@ build-backend = "maturin"
 name = "closest"
 requires-python = ">=3.8"
 version = "0.1.1"
+description = "Nearest neighbors implementation written in rust."
+repository = "https://github.com/jinlow/closest"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",

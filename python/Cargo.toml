@@ -9,5 +9,5 @@ name = "closest"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.20"
+pyo3 = "0.23.5"
 closest = { version = "0.1.0", path = "../" }

@@ -35,10 +35,11 @@ jobs:
           manylinux: auto
           working-directory: python
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: python/dist
+          overwrite: true
 
   windows:
     runs-on: windows-latest
@@ -61,10 +62,11 @@ jobs:
           sccache: 'true'
           working-directory: python
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: python/dist
+          overwrite: true
 
   macos:
     runs-on: macos-latest
@@ -86,10 +88,11 @@ jobs:
           sccache: 'true'
           working-directory: python
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: python/dist
+          overwrite: true
 
   sdist:
     runs-on: ubuntu-latest
@@ -107,10 +110,11 @@ jobs:
           args: --out dist
           working-directory: python
       - name: Upload sdist
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: python/dist
+          overwrite: true
 
   release:
     name: Release

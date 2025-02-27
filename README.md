@@ -1,5 +1,20 @@
 # closest
 
+## Installation
+
+For rust add the following to your `Cargo.toml`
+```toml
+closest = "0.1.0"
+```
+
+For python.
+
+```shell
+pip install closest
+```
+
+## Example
+
 A simple nearest neighbors implementation written in rust.
 
 A rust example, this same example can be run with the following command.
@@ -43,8 +58,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 ```
 
 And the equivalent python example.
+
 ```python
-from nearest import KDTree
+from closest import KDTree
 
 colors = [
         ("blue", [0., 0., 255.]),

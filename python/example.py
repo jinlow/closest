@@ -10,7 +10,7 @@ colors = [
         ("yellow", [255., 234., 0.]),
         ("green", [16., 145., 25.]),
         ("orange", [255., 106., 0.]),
-    ];
+    ]
 tree = KDTree(colors)
 light_orange = [237., 139., 69.]
 print(tree.get_nearest_neighbors(light_orange, 2))

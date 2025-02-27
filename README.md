@@ -1,6 +1,6 @@
 # closest
 
-A simple nearest neighbors implementation in rust.
+A simple nearest neighbors implementation written in rust.
 
 A rust example, this same example can be run with the following command.
 ```sh

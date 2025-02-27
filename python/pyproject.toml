@@ -15,7 +15,7 @@ classifiers = [
 ]
 authors = [{ name = "James Inlow" }]
 readme = "README.md"
-license = { file = "LICENSE" }
+license = { file = "LICENSE.md" }
 
 [project.optional-dependencies]
 tests = [

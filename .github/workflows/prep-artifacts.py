@@ -1,4 +1,4 @@
 import shutil
 
-shutil.copy("LICENSE", "python/LICENSE")
-shutil.copy("README.md", "python/README.md")
+shutil.copy("LICENSE", "python/LICENSE.md")
+shutil.copy("README", "python/README.md")
